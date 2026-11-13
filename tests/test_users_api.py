@@ -1,12 +1,11 @@
+import pytest
 import requests
 
 
-BASE_URL = "https://jsonplaceholder.typicode.com"
-
-
-def test_consultar_usuario_existente():
+@pytest.mark.parametrize("user_id", [1, 2, 3])
+def test_consultar_usuario_existente(api_base_url, user_id):
     response = requests.get(
-        f"{BASE_URL}/users/1",
+        f"{api_base_url}/users/{user_id}",
         timeout=10,
     )
 
@@ -14,15 +13,17 @@ def test_consultar_usuario_existente():
 
     usuario = response.json()
 
-    assert usuario["id"] == 1
+    assert usuario["id"] == user_id
     assert isinstance(usuario["name"], str)
     assert usuario["name"].strip()
+    assert isinstance(usuario["email"], str)
     assert "@" in usuario["email"]
 
 
-def test_consultar_usuario_inexistente():
+@pytest.mark.parametrize("user_id", [0, 999999])
+def test_consultar_usuario_inexistente(api_base_url, user_id):
     response = requests.get(
-        f"{BASE_URL}/users/999999",
+        f"{api_base_url}/users/{user_id}",
         timeout=10,
     )
 
