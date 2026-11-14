@@ -1,0 +1,45 @@
+name: Web smoke tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web-smoke:
+    name: Playwright login smoke (Python 3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Install Chromium and system dependencies
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run Web smoke tests and generate JUnit report
+        run: python -m pytest tests/test_login.py -v --browser chromium --junitxml=reports/web-results.xml
+
+      - name: Upload Web JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-web-junit
+          path: reports/web-results.xml
+          if-no-files-found: warn
+          retention-days: 7
