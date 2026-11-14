@@ -21,7 +21,8 @@ A suíte não implementa testes de banco de dados, carga, segurança, contratos 
 - `docs/test-plan.md`: plano de testes web e registros históricos de execução.
 - `docs/traceability.md`: matriz de rastreabilidade e limites da evidência.
 - `docs/test-reports.md`: geração e consulta do JUnit XML de API.
-- `.github/workflows/api-tests.yml`: CI **somente de API**, com artefato JUnit XML.
+- `.github/workflows/api-tests.yml`: CI de API com artefato JUnit XML.
+- `.github/workflows/web-smoke.yml`: CI de smoke Web com Chromium e relatório JUnit XML (validação do novo workflow pendente).
 
 ## Pré-requisitos e execução local
 
@@ -60,14 +61,14 @@ python -m pytest tests/test_users_api.py -v --junitxml=reports/api-results.xml
 
 - **Web:** o plano de testes registra aprovação local dos dois cenários em 13/11/2026; isso **não** equivale a uma execução web recente no CI.
 - **API:** o workflow [API tests #3](https://github.com/jaquelineleite/qa-python-web-api/actions/runs/43538355446), associado ao PR #5, concluiu com sucesso em 14/11/2026 (UTC). A etapa de geração de relatório e o upload do artefato `pytest-api-junit` foram concluídos; o artefato foi confirmado disponível. O arquivo expira após 7 dias.
-- O CI atual **não executa os testes web**. Um job aprovado de API não comprova regressão web.
+- O PR #7 propõe um workflow separado de smoke Web com Chromium para os dois testes de login. A execução no GitHub Actions deve ser conferida antes de afirmar que o CI Web está aprovado. Um job aprovado de API não comprova regressão Web.
 - Para casos, verificações e limitações, consulte [a matriz de rastreabilidade](docs/traceability.md).
 
 ## Limitações e decisões
 
 - Os testes dependem de SauceDemo e JSONPlaceholder, sujeitos a mudanças ou indisponibilidade.
 - A validação de API verifica status HTTP e campos selecionados; não cobre esquema completo nem persistência.
-- O relatório JUnit XML registra resultados de API, não screenshots, vídeos ou cobertura de código.
+- Os relatórios JUnit XML registram resultados de testes, não screenshots, vídeos ou cobertura de código. O novo relatório Web depende da execução bem-sucedida do respectivo workflow.
 - O projeto mantém uma única stack Python/Pytest para Web e API e não adiciona dashboards ou frameworks extras sem necessidade.
 
 Este repositório não é afiliado às aplicações utilizadas.
