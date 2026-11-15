@@ -1,13 +1,10 @@
 import pytest
-import requests
+from api_client import get_user
 
 
 @pytest.mark.parametrize("user_id", [1, 2, 3])
 def test_consultar_usuario_existente(api_base_url, user_id):
-    response = requests.get(
-        f"{api_base_url}/users/{user_id}",
-        timeout=10,
-    )
+    response = get_user(api_base_url, user_id)
 
     assert response.status_code == 200
 
@@ -22,10 +19,7 @@ def test_consultar_usuario_existente(api_base_url, user_id):
 
 @pytest.mark.parametrize("user_id", [0, 999999])
 def test_consultar_usuario_inexistente(api_base_url, user_id):
-    response = requests.get(
-        f"{api_base_url}/users/{user_id}",
-        timeout=10,
-    )
+    response = get_user(api_base_url, user_id)
 
     assert response.status_code == 404
     assert response.json() == {}
