@@ -16,7 +16,10 @@ A suíte não implementa testes de banco de dados, carga, segurança, contratos 
 - `pages/login_page.py`: Page Object de login web (seletores e ações).
 - `data/login_data.py`: massas de autenticação usadas nos testes.
 - `tests/test_login.py`: dois cenários de autenticação com Playwright.
-- `tests/test_users_api.py`: consultas HTTP e verificações de status e campos JSON.\n- `tests/test_users_contract.py`: contrato estrutural selecionado e limite do dataset de demonstração.
+- `tests/test_users_api.py`: consultas HTTP e verificações de status e campos JSON.
+- `tests/test_users_contract.py`: contrato estrutural selecionado e limite do dataset de demonstração.
+- `tests/test_users_resilience.py`: falhas simuladas de transporte, sem HTTP externo.
+- `api_client.py`: função pequena para GET com timeout configurável e propagação de erros.
 - `tests/conftest.py`: fixture com URL-base da API.
 - `docs/test-plan.md`: plano de testes web e registros históricos de execução.
 - `docs/traceability.md`: matriz de rastreabilidade e limites da evidência.
@@ -42,7 +45,7 @@ python -m pytest -v --browser chromium
 Executar somente API, sem navegador:
 
 ```bash
-python -m pytest tests/test_users_api.py tests/test_users_contract.py -v
+python -m pytest tests/test_users_api.py tests/test_users_contract.py tests/test_users_resilience.py -v
 ```
 
 Executar somente Web:
@@ -54,7 +57,7 @@ python -m pytest tests/test_login.py -v --browser chromium
 Gerar relatório JUnit XML da API:
 
 ```bash
-python -m pytest tests/test_users_api.py tests/test_users_contract.py -v --junitxml=reports/api-results.xml
+python -m pytest tests/test_users_api.py tests/test_users_contract.py tests/test_users_resilience.py -v --junitxml=reports/api-results.xml
 ```
 
 ## Evidências e status
@@ -79,3 +82,11 @@ Este repositório não é afiliado às aplicações utilizadas.
 - Consulta ao ID 11 como borda do dataset público de demonstração de dez usuários, com expectativa HTTP 404 e objeto vazio.
 - Não é validação de esquema OpenAPI completo, persistência, idempotência, timeout ou segurança; o serviço externo pode mudar.
 - O CI de API executa ambos os arquivos de teste. **Aprovação do PR #8 depende de execução real no GitHub Actions**; não inferir resultados pelo código.
+
+## PR #9 — timeout e resiliência de transporte
+
+- O cliente `get_user` utiliza `requests.get(..., timeout=10)` por padrão; timeout configurado **não** significa timeout provocado.
+- Quatro casos determinísticos verificam `ConnectTimeout`, `ReadTimeout`, `ConnectionError` e uma nova tentativa **explícita** bem-sucedida após falha anterior. Usam `monkeypatch` e `unittest.mock`, sem rede externa ou dependências adicionais.
+- A biblioteca Requests não executa retry automático neste cliente. O cenário de recuperação faz duas chamadas separadas, sem afirmar política de retry, backoff, circuit breaker ou recuperação do servidor.
+- Os testes simulam exceções e verificam sua propagação; não medem latência, tempo real de espera, paralelismo ou disponibilidade do JSONPlaceholder.
+- O workflow de API executa os três módulos e publica JUnit. Resultados somente devem ser declarados aprovados após consultar a execução real no GitHub Actions.
