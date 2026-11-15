@@ -7,7 +7,7 @@ Projeto independente de estudos em Quality Engineering, com testes automatizados
 | Camada | Aplicação | Ferramentas | Cobertura implementada |
 | --- | --- | --- | --- |
 | Web | [SauceDemo](https://www.saucedemo.com/) | Playwright + Pytest | Login válido e senha inválida (2 testes) |
-| API REST | [JSONPlaceholder](https://jsonplaceholder.typicode.com/) | Requests + Pytest | GET de usuários existentes (IDs 1, 2, 3) e inexistentes (0, 999999): 5 casos parametrizados |
+| API REST | [JSONPlaceholder](https://jsonplaceholder.typicode.com/) | Requests + Pytest | GET de usuários existentes (IDs 1, 2, 3) e inexistentes (0, 999999): 5 casos; contrato estrutural selecionado (IDs 1 e 10) e borda do dataset (ID 11): 3 casos adicionais |
 
 A suíte não implementa testes de banco de dados, carga, segurança, contratos completos de API ou fluxos de compra.
 
@@ -16,7 +16,7 @@ A suíte não implementa testes de banco de dados, carga, segurança, contratos 
 - `pages/login_page.py`: Page Object de login web (seletores e ações).
 - `data/login_data.py`: massas de autenticação usadas nos testes.
 - `tests/test_login.py`: dois cenários de autenticação com Playwright.
-- `tests/test_users_api.py`: consultas HTTP e verificações de status e campos JSON.
+- `tests/test_users_api.py`: consultas HTTP e verificações de status e campos JSON.\n- `tests/test_users_contract.py`: contrato estrutural selecionado e limite do dataset de demonstração.
 - `tests/conftest.py`: fixture com URL-base da API.
 - `docs/test-plan.md`: plano de testes web e registros históricos de execução.
 - `docs/traceability.md`: matriz de rastreabilidade e limites da evidência.
@@ -42,7 +42,7 @@ python -m pytest -v --browser chromium
 Executar somente API, sem navegador:
 
 ```bash
-python -m pytest tests/test_users_api.py -v
+python -m pytest tests/test_users_api.py tests/test_users_contract.py -v
 ```
 
 Executar somente Web:
@@ -54,7 +54,7 @@ python -m pytest tests/test_login.py -v --browser chromium
 Gerar relatório JUnit XML da API:
 
 ```bash
-python -m pytest tests/test_users_api.py -v --junitxml=reports/api-results.xml
+python -m pytest tests/test_users_api.py tests/test_users_contract.py -v --junitxml=reports/api-results.xml
 ```
 
 ## Evidências e status
@@ -72,3 +72,10 @@ python -m pytest tests/test_users_api.py -v --junitxml=reports/api-results.xml
 - O projeto mantém uma única stack Python/Pytest para Web e API e não adiciona dashboards ou frameworks extras sem necessidade.
 
 Este repositório não é afiliado às aplicações utilizadas.
+
+## PR #8 — contrato e borda da API
+
+- Verificações de `Content-Type`, tipos e presença de campos essenciais e estruturas aninhadas (`address.geo` e `company`) para usuários 1 e 10.
+- Consulta ao ID 11 como borda do dataset público de demonstração de dez usuários, com expectativa HTTP 404 e objeto vazio.
+- Não é validação de esquema OpenAPI completo, persistência, idempotência, timeout ou segurança; o serviço externo pode mudar.
+- O CI de API executa ambos os arquivos de teste. **Aprovação do PR #8 depende de execução real no GitHub Actions**; não inferir resultados pelo código.
