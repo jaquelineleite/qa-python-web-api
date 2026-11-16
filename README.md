@@ -90,3 +90,11 @@ Este repositório não é afiliado às aplicações utilizadas.
 - A biblioteca Requests não executa retry automático neste cliente. O cenário de recuperação faz duas chamadas separadas, sem afirmar política de retry, backoff, circuit breaker ou recuperação do servidor.
 - Os testes simulam exceções e verificam sua propagação; não medem latência, tempo real de espera, paralelismo ou disponibilidade do JSONPlaceholder.
 - O workflow de API executa os três módulos e publica JUnit. Resultados somente devem ser declarados aprovados após consultar a execução real no GitHub Actions.
+
+## PR #10 — idempotência de operações de escrita (API local de teste)
+
+- `tests/test_orders_idempotency.py` inicia um servidor HTTP local isolado em porta dinâmica, com endpoint demonstrativo `POST /orders` e cabeçalho `Idempotency-Key`.
+- Quatro cenários: repetição da mesma chave e payload sem duplicação; chave repetida com payload diferente retorna 409; chaves distintas criam pedidos distintos; ausência de chave retorna 400.
+- O servidor é uma **implementação de teste controlada**, não a API JSONPlaceholder nem um serviço de produção. As regras 201/200/409/400 são um contrato didático definido neste projeto, não um padrão universal.
+- O teste verifica respostas HTTP reais sobre loopback e estado em memória; não comprova persistência em banco, concorrência, recuperação após reinício ou idempotência distribuída.
+- Executar: `python -m pytest tests/test_orders_idempotency.py -v`. O workflow API inclui esses quatro cenários e publica JUnit.
