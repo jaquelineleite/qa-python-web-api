@@ -5,7 +5,8 @@ fixture, NOT idempotency support in JSONPlaceholder or a production service.
 """
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from threading import Thread
+from threading import Barrier, Lock, Thread
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import requests
@@ -15,6 +16,7 @@ import requests
 def orders_api():
     saved = {}
     created = []
+    state_lock = Lock()
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -37,18 +39,21 @@ def orders_api():
                 self._reply(400, {"error": "invalid JSON"})
                 return
 
-            if key in saved:
-                previous_payload, response = saved[key]
-                if payload != previous_payload:
-                    self._reply(409, {"error": "key reused with different payload"})
+            # Protect the check-and-create operation across handler threads.
+            with state_lock:
+                if key in saved:
+                    previous_payload, response = saved[key]
+                    if payload != previous_payload:
+                        status, body = 409, {"error": "key reused with different payload"}
+                    else:
+                        status, body = 200, response
                 else:
-                    self._reply(200, response)
-                return
+                    response = {"id": len(created) + 1, "status": "created"}
+                    created.append(response)
+                    saved[key] = (payload, response)
+                    status, body = 201, response
 
-            response = {"id": len(created) + 1, "status": "created"}
-            created.append(response)
-            saved[key] = (payload, response)
-            self._reply(201, response)
+            self._reply(status, body)
 
         def _reply(self, status, body):
             data = json.dumps(body).encode("utf-8")
@@ -122,3 +127,39 @@ def test_missing_key_is_rejected_without_creation(orders_api):
 
     assert response.status_code == 400
     assert len(created) == 0
+
+
+def test_concurrent_same_key_creates_only_one_order(orders_api):
+    """Simultaneous client calls must not create duplicate orders."""
+    base_url, created = orders_api
+    workers = 8
+    start = Barrier(workers)
+
+    def submit(_):
+        start.wait(timeout=10)
+        return create_order(base_url, "order-concurrent-001", {"quantity": 1})
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        responses = list(pool.map(submit, range(workers)))
+
+    assert sorted(response.status_code for response in responses) == [200] * (workers - 1) + [201]
+    assert len({response.json()["id"] for response in responses}) == 1
+    assert len(created) == 1
+
+
+def test_concurrent_distinct_keys_create_distinct_orders(orders_api):
+    """Independent idempotency keys represent independent operations."""
+    base_url, created = orders_api
+    workers = 8
+    start = Barrier(workers)
+
+    def submit(index):
+        start.wait(timeout=10)
+        return create_order(base_url, f"order-concurrent-{index}", {"quantity": 1})
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        responses = list(pool.map(submit, range(workers)))
+
+    assert all(response.status_code == 201 for response in responses)
+    assert len({response.json()["id"] for response in responses}) == workers
+    assert len(created) == workers
